@@ -1,3 +1,4 @@
+import { useXPostResolver, X_MEDIA_URL_PROTOCOLS } from '@/editor/use-x-post-resolver'
 import type { ReactElement } from 'react'
 import { MarkdownView } from '@meowdown/react'
 import type { WikilinkClickHandler } from '@meowdown/core'
@@ -42,11 +43,14 @@ export function BacklinkSnippet({
   onWikilinkClick,
   resolveImageUrl,
 }: BacklinkSnippetProps): ReactElement {
+  const resolveXPost = useXPostResolver()
   const onTaskClick = useSnippetTaskToggle(notePath, tasks)
   const openExternalLink = useOpenExternalLink()
   return (
     <div className="reflect-backlink-snippet select-text text-xs text-text">
       <MarkdownView
+        resolveXPost={resolveXPost}
+        mediaUrlProtocols={X_MEDIA_URL_PROTOCOLS}
         className="reflect-editor"
         markdown={text}
         expandCollapsed

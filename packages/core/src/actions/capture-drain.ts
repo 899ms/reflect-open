@@ -1,3 +1,4 @@
+import { saveArchivedPost, createArchivedPost } from '../x-archive'
 import type { BookmarkEnvelope } from './bookmark-envelope'
 import { errorMessage, isAppError, toAppError } from '../errors'
 import {
@@ -200,6 +201,12 @@ export async function drainCaptureInbox(
         try {
           if (!input.writeBookmark) {
             throw new Error('Bookmark writer is unavailable; update Reflect')
+          }
+          if (envelope.data) {
+            await saveArchivedPost(
+              input.generation,
+              createArchivedPost(envelope.data, envelope.capturedAt),
+            )
           }
           const daily = dailyPath(captureLocalDate(new Date(envelope.capturedAt)))
           await input.writeBookmark(envelope, daily)

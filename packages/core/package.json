@@ -6,13 +6,16 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./capture-envelope": "./src/actions/capture-envelope.ts"
+    "./capture-envelope": "./src/actions/capture-envelope.ts",
+    "./x-archive": "./src/x-archive.ts"
   },
   "scripts": {
     "test": "vitest run --config ../../vitest.config.ts --project core-browser --project core-node"
   },
   "dependencies": {
-    "@meowdown/markdown": "^0.70.1",
+    "@meowdown/markdown": "^0.71.0",
+    "@post-embed/schema": "^0.4.0",
+    "@post-embed/types": "^0.4.0",
     "@reflect/db": "workspace:*",
     "@reflect/modules": "workspace:*",
     "@reflect/utils": "workspace:*",

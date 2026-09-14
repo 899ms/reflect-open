@@ -1,5 +1,9 @@
+vi.mock('../x-archive', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../x-archive')>()),
+  saveArchivedPost: vi.fn(async () => {}),
+}))
 import { drainCaptureInbox } from './capture-drain'
-import fixtures from './bookmark-envelope.fixtures.json'
+import { bookmarkEnvelopeFixtures as fixtures } from './bookmark-envelope.fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   addSpool,

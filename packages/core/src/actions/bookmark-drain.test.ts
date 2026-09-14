@@ -1,3 +1,8 @@
+import { saveArchivedPost } from '../x-archive'
+vi.mock('../x-archive', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../x-archive')>()),
+  saveArchivedPost: vi.fn(async () => {}),
+}))
 import { beforeEach, expect, it, vi } from 'vitest'
 import { appendBookmark } from './bookmark-capture'
 import { drainCaptureInbox } from './capture-drain'
@@ -21,9 +26,9 @@ vi.mock('../graph/commands', () => ({
 const envelope: BookmarkEnvelope = {
   version: 2,
   kind: 'x-bookmark',
+  data: { id: '20', createdAt: '', author: { name: '', handle: '' }, body: [] },
   id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
   source: 'extension',
-  postId: '20',
   capturedAt: '2026-09-09T04:00:00Z',
 }
 
@@ -58,4 +63,43 @@ it('keeps the spool when the document is busy or the bookmark writer is unavaila
   expect((await drainCaptureInbox({ generation: 1 })).drained).toBe(0)
   expect(captureInboxRemove).not.toHaveBeenCalled()
   expect(writeNote).not.toHaveBeenCalled()
+})
+
+it('saves the archive before writing Markdown and removes the spool last', async () => {
+  const steps: string[] = []
+  vi.mocked(saveArchivedPost).mockImplementation(async (generation, archive) => {
+    expect(generation).toBe(1)
+    expect(archive.data).toMatchObject(envelope.data)
+    steps.push('archive')
+  })
+  const writeBookmark = vi.fn(async () => {
+    steps.push('markdown')
+  })
+  vi.mocked(captureInboxRemove).mockImplementation(async () => {
+    steps.push('remove')
+  })
+  expect((await drainCaptureInbox({ generation: 1, writeBookmark })).drained).toBe(1)
+  expect(steps).toEqual(['archive', 'markdown', 'remove'])
+})
+
+it('retains the inbox and never inserts Markdown when archive persistence fails', async () => {
+  vi.mocked(saveArchivedPost).mockRejectedValue({ kind: 'io', message: 'disk full' })
+  const writeBookmark = vi.fn(async () => {})
+  expect((await drainCaptureInbox({ generation: 1, writeBookmark })).drained).toBe(0)
+  expect(writeBookmark).not.toHaveBeenCalled()
+  expect(captureInboxRemove).not.toHaveBeenCalled()
+})
+
+it('writes and deduplicates URL-only bookmarks without touching an archive', async () => {
+  const fallback = { ...envelope, data: undefined, postId: '20' }
+  vi.mocked(captureInboxRead).mockResolvedValue(JSON.stringify(fallback))
+  let source = ''
+  const writeBookmark = async (capture: BookmarkEnvelope) => {
+    source = appendBookmark(source, capture)
+  }
+  expect((await drainCaptureInbox({ generation: 1, writeBookmark })).drained).toBe(1)
+  expect((await drainCaptureInbox({ generation: 1, writeBookmark })).drained).toBe(1)
+  expect(source).toBe('## X bookmarks\n\n![](https://x.com/i/status/20)\n')
+  expect(saveArchivedPost).not.toHaveBeenCalled()
+  expect(captureInboxRemove).toHaveBeenCalledTimes(2)
 })

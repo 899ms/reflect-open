@@ -1,5 +1,7 @@
+import { saveXPost } from '@/lib/x-save'
+import { parseXPostId } from '@post-embed/schema'
 import { z } from 'zod'
-import { extensionCaptureWireSchema } from '@reflect/core/capture-envelope'
+import { extensionCaptureWireSchema, postIdSchema } from '@reflect/core/capture-envelope'
 import { browser } from 'wxt/browser'
 import { defineBackground } from '#imports'
 import { SAVE_CURRENT_PAGE_COMMAND } from '@/lib/commands'
@@ -23,6 +25,11 @@ const RETRY_ALARM = 'capture-retry'
 const RETRY_PERIOD_MINUTES = 15
 
 async function saveTabWithDefaults(tab: Parameters<typeof snapshotTab>[0]): Promise<void> {
+  const postId = tab?.url ? parseXPostId(tab.url) : undefined
+  if (postId && tab?.id !== undefined) {
+    await saveXPost(tab.id, postId)
+    return
+  }
   const captured = await snapshotTab(tab)
   if (captured.status !== 'ready') {
     return
@@ -51,7 +58,28 @@ const enqueueRequestSchema = z.object({
 
 export default defineBackground(() => {
   registerBookmarkObserver()
-  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (sender.id === browser.runtime.id) {
+      const save = z
+        .object({
+          type: z.literal('x-archive:save'),
+          tabId: z.number().int().nonnegative(),
+          postId: postIdSchema,
+        })
+        .safeParse(message)
+      if (save.success) {
+        saveXPost(save.data.tabId, save.data.postId).then(
+          () => sendResponse({ ok: true }),
+          (error: unknown) =>
+            sendResponse({
+              ok: false,
+              message: error instanceof Error ? error.message : 'capture-failed',
+            }),
+        )
+        return true
+      }
+    }
+
     const enqueue = enqueueRequestSchema.safeParse(message)
     if (enqueue.success) {
       void enqueueCapture(enqueue.data.wire).then(

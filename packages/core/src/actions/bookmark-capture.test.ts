@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { appendBookmark } from './bookmark-capture'
-import { getBookmarkPostId, type BookmarkEnvelope } from './bookmark-envelope'
+import type { BookmarkEnvelope } from './bookmark-envelope'
 import { inboxEnvelopeSchema } from './capture-envelope'
 import { parseNote } from '../markdown/extract'
 
 const capture: BookmarkEnvelope = {
   version: 2,
   kind: 'x-bookmark',
+  data: { id: '20', createdAt: '', author: { name: '', handle: '' }, body: [] },
   id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
   source: 'extension',
-  postId: '20',
   capturedAt: '2026-09-09T04:00:00Z',
 }
 
@@ -40,7 +40,7 @@ describe('appendBookmark', () => {
       source = appendBookmark(source, {
         ...capture,
         id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
-        postId: String(index + 1),
+        data: { ...capture.data, id: String(index + 1) },
       })
     }
     expect(parseNote({ path: '', source }).links).toHaveLength(10)
@@ -69,10 +69,4 @@ it('never falls back to the v1 link parser for an unknown kind or version', () =
       title: 'fallback',
     }).success,
   ).toBe(false)
-})
-
-it('accepts canonical IDs and rejects misleading permalink hosts', () => {
-  expect(getBookmarkPostId('https://x.com/i/status/20')).toBe('20')
-  expect(getBookmarkPostId('https://x.com.evil.test/i/status/20')).toBeUndefined()
-  expect(getBookmarkPostId('https://x.com/home')).toBeUndefined()
 })

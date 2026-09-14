@@ -1,39 +1,24 @@
+import { xPostSchema } from '../x-archive'
+import { X_POST_ID_PATTERN } from '@post-embed/schema'
 import { z } from 'zod'
 
-export const postIdSchema = z.string().regex(/^[1-9]\d{0,19}$/)
+export const postIdSchema = z.string().regex(X_POST_ID_PATTERN)
 
-/** URL-only X bookmark capture; the desktop derives the permalink from `postId`. */
-export const bookmarkEnvelopeSchema = z
-  .object({
-    version: z.literal(2),
-    kind: z.literal('x-bookmark'),
-    id: z.guid(),
-    source: z.literal('extension'),
-    postId: postIdSchema,
-    capturedAt: z.iso.datetime({ offset: true }),
-  })
-  .strict()
+/** Capture metadata shared by snapshots and URL-only fallbacks. */
+const bookmarkMetadataSchema = z.object({
+  version: z.literal(2),
+  kind: z.literal('x-bookmark'),
+  id: z.guid(),
+  source: z.literal('extension'),
+  capturedAt: z.iso.datetime({ offset: true }),
+})
+
+/** A failed page lookup still preserves the bookmark, without inventing post data. */
+export const bookmarkEnvelopeSchema = z.union([
+  bookmarkMetadataSchema.extend({ data: xPostSchema }),
+  bookmarkMetadataSchema.extend({ postId: postIdSchema, data: z.never().optional() }),
+])
+
 export type BookmarkEnvelope = z.infer<typeof bookmarkEnvelopeSchema>
 
 export const bookmarkWireSchema = z.object({ envelope: bookmarkEnvelopeSchema }).strict()
-
-/** Normalize supported X permalink spellings to a post ID. */
-export function getBookmarkPostId(value: string): string | undefined {
-  try {
-    const url = new URL(value)
-    if (
-      url.protocol !== 'https:' ||
-      !['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com'].includes(url.hostname) ||
-      url.port ||
-      url.username ||
-      url.password
-    )
-      return undefined
-    const match = /^\/(?:\w+|i\/web)\/status\/([1-9]\d{0,19})(?:\/(?:photo|video)\/\d+)?\/?$/.exec(
-      url.pathname,
-    )
-    return match?.[1]
-  } catch {
-    return undefined
-  }
-}

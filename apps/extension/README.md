@@ -97,22 +97,58 @@ openssl rsa -in key.pem -pubout -outform DER | shasum -a 256 \
 
 ## Releasing updates to the Chrome Web Store
 
-`pnpm --filter @reflect/extension zip` produces a key-stripped,
-signed-on-upload package whose manifest declares only the permissions the code
-uses (see the justifications below). Upload updates to the existing
-[Reflect Capture listing](https://chromewebstore.google.com/detail/reflect-capture/ccabifmooehighoonjeiololjfofkhkd)
-in the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+release-please maintains a separate draft `chore(extension): release <version>` PR
+on `master`. Mark it ready and merge it to publish the GitHub release with an
+`extension-v<version>` tag and run the
+[Release Browser Extension workflow](../../.github/workflows/release-browser-extension.yml).
+The workflow builds the store ZIP from that commit and uses `wxt submit` to
+submit it to the existing
+[Reflect Capture listing](https://chromewebstore.google.com/detail/reflect-capture/ccabifmooehighoonjeiololjfofkhkd).
+Chrome publishes the update after review approval. The GitHub release is published
+before Chrome submission and does not indicate that store review has finished.
 
-### Build & upload
+The extension version and changelog are independent of desktop beta/stable
+releases. Let release-please update `package.json` and `CHANGELOG.md`. Extension
+`feat`/`fix` changes must touch `apps/extension`; shared dependency changes that
+need an extension release should include an extension-local change describing
+the affected behavior. A `chore` commit alone does not trigger a release.
 
-1. `pnpm --filter @reflect/extension check` (typecheck + lint) and
-   `pnpm --filter @reflect/extension test` — both must be green.
-2. `pnpm --filter @reflect/extension zip` → upload
-   `.output/reflect-capture-<version>-chrome.zip`. This artifact omits the manifest
-   `key` (the store rejects it); a plain `wxt build` keeps it for unpacked loads.
-3. Keep `chrome-extension://ccabifmooehighoonjeiololjfofkhkd/` in
-   `EXTENSION_ORIGINS` in `apps/desktop/src-tauri/src/capture.rs`; the
-   native-messaging host manifests rewrite themselves on each desktop launch.
+### Configuration
+
+The workflow reads repository Actions secrets `CHROME_PUBLISHER_ID`,
+`CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, and `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`.
+The service account must be linked to the existing publisher in the Chrome Web
+Store dashboard. See [Google's setup instructions](https://developer.chrome.com/docs/webstore/service-accounts).
+Use the v2 API service account credentials, not the deprecated v1 OAuth tokens.
+
+### Retries and manual recovery
+
+The workflow runs only through release-please. For a failed run, inspect the
+[Developer Dashboard](https://chrome.google.com/webstore/devconsole) first, then
+rerun the failed job in GitHub Actions if a fresh upload is appropriate. Each rerun
+builds a new ZIP from the release commit.
+
+`wxt submit` does not cancel pending reviews by default or skip already submitted
+versions. If the version is pending or published, finish recovery in the dashboard
+instead of uploading again. The pinned publisher also fails when Google processes
+an upload asynchronously; wait for processing and submit the uploaded package in
+the dashboard. A published regression needs a higher version containing the fix.
+
+Before merging a Release PR, update listing/privacy declarations for changed
+permissions or capture behavior and check compatibility with the oldest supported
+installed desktop host. Test the store-installed extension on macOS, including
+queued captures while the app is closed. Preserve both extension IDs in
+`EXTENSION_ORIGINS`; a store ZIP omits `key` and is unsuitable for unpacked
+native-messaging tests. Use a normal `pnpm --filter @reflect/extension build`
+for those tests.
+
+### Manual packaging fallback
+
+Run `pnpm check` at the repository root and
+`pnpm --filter @reflect/extension test`, then
+`pnpm --filter @reflect/extension zip`. The store build omits the dev key. Upload
+`apps/extension/.output/reflect-capture-<version>-chrome.zip` to the existing
+listing only after checking its current published and submitted versions.
 
 ### Listing copy
 
@@ -131,6 +167,10 @@ in the [Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 > A capture includes the page's URL and title, your current text selection, and a
 > screenshot of the visible tab. Optionally, tick "Capture page text" to include the
 > page's readable text as well.
+>
+> Bookmarking a post on X also saves its link to Reflect. This is enabled by
+> default and can be disabled in the popup. The extension observes bookmark
+> requests on x.com to identify the post you chose to save.
 >
 > Captures are handed to the **installed Reflect desktop app** over a local connection
 > on your own machine — there is no Reflect account and no Reflect server in the path.
@@ -171,8 +211,9 @@ Each is reviewed individually; every permission below is exercised by the code:
 ### Data-handling disclosures (Privacy practices tab)
 
 - **Data collected:** *Website content* (the captured page's URL, title, selection,
-  screenshot, and — only when opted in — page text). Collected **only on an explicit
-  user action**, never in the background.
+  screenshot, and optional page text), plus the post identifier/link when you
+  bookmark on X with bookmark capture enabled. The background worker observes
+  X bookmark requests; it does not capture unrelated browsing content.
 - **Where it goes:** to the user's own machine (the local Reflect desktop app). It is
   **not** sent to Reflect or any third party.
 - The three required certifications are all true and can be affirmed:

@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { BookmarkControls } from './bookmark-controls'
 import { useEffect, useRef, useState, type FormEvent, type ReactElement } from 'react'
+import { PopupHeader } from './header'
 import { browser } from 'wxt/browser'
 import { readQueue } from '@/lib/flush'
 import type { FlushResult } from '@/lib/messages'
@@ -118,10 +118,20 @@ export function CapturePopup(): ReactElement {
   }
 
   if (captured.status === 'loading') {
-    return <div className="h-24" />
+    return (
+      <>
+        <PopupHeader />
+        <div className="h-24" />
+      </>
+    )
   }
   if (captured.status === 'uncapturable') {
-    return <p className="p-4 text-sm text-text-muted">This page can’t be captured.</p>
+    return (
+      <>
+        <PopupHeader />
+        <p className="p-4 text-sm text-text-muted">This page can’t be captured.</p>
+      </>
+    )
   }
 
   const { page } = captured
@@ -139,6 +149,7 @@ export function CapturePopup(): ReactElement {
 
   return (
     <>
+      <PopupHeader />
       <form onSubmit={onSubmit} className="flex flex-col gap-3 p-3">
         {page.screenshotDataUrl ? (
           <img
@@ -206,7 +217,6 @@ export function CapturePopup(): ReactElement {
           </p>
         ) : null}
       </form>
-      <BookmarkControls />
     </>
   )
 }

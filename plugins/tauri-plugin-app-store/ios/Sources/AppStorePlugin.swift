@@ -35,6 +35,22 @@ class AppStorePlugin: Plugin {
     }
     invoke.reject("the app transaction is unavailable")
   }
+
+  /// Forces StoreKit to refetch transactions and subscription status from
+  /// the App Store. May show Apple's sign-in prompt, so it runs only behind
+  /// an explicit user action.
+  @objc public func sync(_ invoke: Invoke) async throws {
+    guard #available(iOS 15.0, *) else {
+      invoke.reject("AppStore.sync needs iOS 15")
+      return
+    }
+    do {
+      try await AppStore.sync()
+      invoke.resolve()
+    } catch {
+      invoke.reject("AppStore.sync failed: \(error.localizedDescription)")
+    }
+  }
 }
 
 @_cdecl("init_plugin_app_store")

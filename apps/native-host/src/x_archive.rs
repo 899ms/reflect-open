@@ -8,6 +8,10 @@ pub fn spool(envelope: &Value, pointer: &Path) -> Result<(), HostError> {
     if envelope["version"] != 2 {
         return Err(HostError::UnsupportedVersion);
     }
+    let kind = envelope["kind"].as_str().ok_or_else(invalid)?;
+    if !matches!(kind, "x-bookmark" | "x-like") {
+        return Err(invalid());
+    }
     let id = envelope["id"].as_str().ok_or_else(invalid)?;
     if !crate::envelope::is_uuid(id) {
         return Err(invalid());
@@ -29,7 +33,11 @@ pub fn spool(envelope: &Value, pointer: &Path) -> Result<(), HostError> {
     {
         return Err(invalid());
     }
-    let inbox = spool::inbox_dir(pointer)?;
+    let pointer = spool::read_pointer(pointer)?;
+    if kind == "x-like" && pointer.x_like_version != Some(2) {
+        return Err(HostError::UnsupportedVersion);
+    }
+    let inbox = spool::inbox_dir_of(&pointer)?;
     let bytes = serde_json::to_vec(envelope).map_err(|error| HostError::Io(error.to_string()))?;
     spool::atomic_write(&inbox, &format!("{id}.json"), &bytes)
 }
@@ -42,7 +50,7 @@ mod tests {
     #[test]
     fn rejects_invalid_capture_metadata_before_spooling() {
         let valid = json!({
-            "version": 2, "source": "extension",
+            "version": 2, "kind": "x-bookmark", "source": "extension",
             "id": "12345678-1234-4234-8234-123456789abc",
             "capturedAt": "2026-09-14T00:00:00Z", "data": {"id": "123"}
         });
@@ -65,6 +73,33 @@ mod tests {
                 spool(&envelope, Path::new("/missing-pointer")),
                 Err(HostError::InvalidPayload(_))
             ));
+        }
+    }
+
+    #[test]
+    fn matches_the_shared_envelope_fixtures() {
+        let fixtures: Value = serde_json::from_str(include_str!(
+            "../../../packages/core/src/actions/bookmark-envelope.fixtures.json"
+        ))
+        .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let pointer = directory.path().join("pointer.json");
+        std::fs::write(
+            &pointer,
+            json!({ "version": 1, "graphRoot": directory.path(), "xLikeVersion": 2 }).to_string(),
+        )
+        .unwrap();
+        let inbox = directory.path().join(".reflect/inbox");
+        for wire in fixtures["accepted"].as_array().unwrap() {
+            let envelope = &wire["envelope"];
+            spool(envelope, &pointer).unwrap();
+            let name = format!("{}.json", envelope["id"].as_str().unwrap());
+            let saved: Value =
+                serde_json::from_slice(&std::fs::read(inbox.join(name)).unwrap()).unwrap();
+            assert_eq!(&saved, envelope);
+        }
+        for wire in fixtures["rejected"].as_array().unwrap() {
+            assert!(spool(&wire["envelope"], &pointer).is_err(), "{wire}");
         }
     }
 }

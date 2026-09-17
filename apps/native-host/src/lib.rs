@@ -49,7 +49,7 @@ impl HostError {
     fn message(&self) -> String {
         match self {
             HostError::UnsupportedVersion => {
-                "Update and open Reflect before saving bookmarks.".into()
+                "Update and open Reflect before saving X posts.".into()
             }
             HostError::NoGraph => "Open Reflect and pick a graph first.".to_string(),
             HostError::InvalidPayload(message) | HostError::Io(message) => message.clone(),
@@ -77,8 +77,8 @@ fn handle_message(payload: &[u8], pointer_path: &Path) -> Result<(), HostError> 
     let value: serde_json::Value = serde_json::from_slice(payload)
         .map_err(|_| HostError::InvalidPayload("Invalid capture JSON".into()))?;
     match value["envelope"].get("kind") {
-        Some(kind) if kind == "x-bookmark" => {
-            return x_archive::spool(&value["envelope"], pointer_path)
+        Some(kind) if kind == "x-bookmark" || kind == "x-like" => {
+            return x_archive::spool(&value["envelope"], pointer_path);
         }
         Some(_) => return Err(HostError::InvalidPayload("Unexpected capture kind".into())),
         None => {}
@@ -276,5 +276,38 @@ mod tests {
         let ack = read_ack(&output);
         assert_eq!(ack["ok"], false);
         assert_eq!(ack["code"], "invalid-payload");
+    }
+    #[test]
+    fn wire_dispatch_spools_like_only_for_capable_reader() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("pointer.json");
+        let payload = wire(
+            serde_json::json!({
+                "version": 2, "kind": "x-like", "postId": "20",
+                "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "capturedAt": "2026-09-09T04:00:00Z", "source": "extension",
+            }),
+            None,
+        );
+        for supported in [false, true] {
+            std::fs::write(
+                &path,
+                serde_json::json!({
+                    "version": 1, "graphRoot": directory.path(), "bookmarkVersion": 2,
+                    "xLikeVersion": if supported { Some(2) } else { None },
+                })
+                .to_string(),
+            )
+            .unwrap();
+            let mut output = Vec::new();
+            run(&mut Cursor::new(framed(&payload)), &mut output, &path).unwrap();
+            let ack = read_ack(&output);
+            if supported {
+                assert_eq!(ack["status"], "queued");
+            } else {
+                assert_eq!(ack["code"], "unsupported-version");
+                assert!(!directory.path().join(".reflect/inbox").exists());
+            }
+        }
     }
 }

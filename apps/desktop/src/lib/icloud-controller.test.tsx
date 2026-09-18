@@ -467,20 +467,15 @@ describe('createIcloudController', () => {
     expect(scanCalls[1]).toMatchObject({ scope: 'ingested', ingestedPaths: ['notes/late.md'] })
   })
 
-  it('conflict signals and resume events schedule deduped sweeps', async () => {
-    const icloud = controller({ watch: true })
+  it('the network coming back schedules a sweep', async () => {
+    const icloud = controller()
     await icloud.start()
     await settleScan() // baseline
 
-    listeners.get('icloud:conflicts')?.(['notes/a.md'])
+    window.dispatchEvent(new Event('online'))
     await settleScan()
-    expect(scanCalls).toHaveLength(2)
 
-    // One resume transition fires focus twice (focus + visibility) — deduped.
-    window.dispatchEvent(new Event('focus'))
-    window.dispatchEvent(new Event('focus'))
-    await settleScan()
-    expect(scanCalls).toHaveLength(3)
+    expect(scanCalls).toHaveLength(2)
   })
 
   it('dirty open notes ride skipPaths so their conflicts defer', async () => {

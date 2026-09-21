@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { NoteSession } from '@/editor/note-session'
+import type { NoteSession } from '@/editor/note-session.ts'
 
 const readNote = vi.hoisted(() => vi.fn<(path: string) => Promise<string>>())
 const writeNote = vi.hoisted(() => vi.fn(async () => {}))
@@ -10,9 +10,9 @@ vi.mock('@reflect/core', async (importOriginal) => ({
   readNote,
   writeNote,
 }))
-vi.mock('@/editor/open-documents', () => ({ openSession }))
+vi.mock('@/editor/open-documents.ts', () => ({ openSession }))
 
-const { commitNoteFrontmatter, readNoteSource } = await import('./note-frontmatter')
+const { commitNoteFrontmatter, readNoteSource } = await import('./note-frontmatter.ts')
 
 function fakeSession(options: { live?: string | null; canCommit?: boolean }) {
   const commitFrontmatter = vi.fn(async () => options.canCommit ?? true)

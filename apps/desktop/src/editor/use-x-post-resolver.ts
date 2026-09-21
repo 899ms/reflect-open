@@ -10,8 +10,8 @@ import {
   resolveArchivedPost,
   saveArchivedPost,
 } from '@reflect/core/x-archive'
-import { queryClient, queryKeys } from '@/lib/query-client'
-import { useGraph } from '@/providers/graph-provider'
+import { queryClient, queryKeys } from '@/lib/query-client.ts'
+import { useGraph } from '@/providers/graph-provider.tsx'
 
 export const X_MEDIA_URL_PROTOCOLS = ['reflect-asset:']
 

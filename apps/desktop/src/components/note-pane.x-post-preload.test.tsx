@@ -4,11 +4,11 @@ import { page } from 'vitest/browser'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { setBridge } from '@reflect/core'
 import type { resolveArchivedPost } from '@reflect/core/x-archive'
-import { PaletteProvider } from '@/components/command-palette/palette-provider'
-import { queryClient } from '@/lib/query-client'
-import { RouterProvider } from '@/routing/router'
-import '@/test-utils/locator'
-import { RouteContent } from './route-content'
+import { PaletteProvider } from '@/components/command-palette/palette-provider.tsx'
+import { queryClient } from '@/lib/query-client.ts'
+import { RouterProvider } from '@/routing/router.tsx'
+import '@/test-utils/locator.ts'
+import { RouteContent } from './route-content.tsx'
 
 vi.mock('@tauri-apps/api/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@tauri-apps/api/core')>()),
@@ -20,13 +20,13 @@ vi.mock('@reflect/core', async (importOriginal) => ({
   getBacklinksWithContext: async () => ({ contexts: [], nextCursor: null, indexedLinkCount: 0 }),
   relatedNotes: async () => [],
 }))
-vi.mock('@/providers/graph-provider', () => ({
+vi.mock('@/providers/graph-provider.tsx', () => ({
   useGraph: () => ({
     graph: { root: '/g', name: 'g', generation: 1 },
     indexing: false,
   }),
 }))
-vi.mock('@/providers/settings-provider', () => ({
+vi.mock('@/providers/settings-provider.tsx', () => ({
   useSettings: () => ({
     settings: {
       editorMarkdownSyntax: 'hide',

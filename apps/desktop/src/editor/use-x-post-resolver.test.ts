@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { setBridge } from '@reflect/core'
 import { fetchSyndicationPost, type resolveArchivedPost } from '@reflect/core/x-archive'
-import { invalidateXPostQueries, queryClient } from '@/lib/query-client'
-import { createXPostResolver, getXPostResolver } from './use-x-post-resolver'
+import { invalidateXPostQueries, queryClient } from '@/lib/query-client.ts'
+import { createXPostResolver, getXPostResolver } from './use-x-post-resolver.ts'
 
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (path: string) => `reflect-asset://${path}`,
 }))
-vi.mock('@/providers/graph-provider', () => ({ useGraph: () => null }))
+vi.mock('@/providers/graph-provider.tsx', () => ({ useGraph: () => null }))
 vi.mock('@reflect/core/x-archive', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@reflect/core/x-archive')>()),
   fetchSyndicationPost: vi.fn(),

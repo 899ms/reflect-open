@@ -3,17 +3,17 @@ import { userEvent } from 'vitest/browser'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SnippetTask } from '@reflect/core'
-import { BacklinkSnippet } from './backlink-snippet'
+import { BacklinkSnippet } from './backlink-snippet.tsx'
 
 const toggleTask = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/note-task', () => ({ toggleTask }))
+vi.mock('@/lib/note-task.ts', () => ({ toggleTask }))
 
 const operationFail = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/operations', () => ({
+vi.mock('@/lib/operations.ts', () => ({
   startOperation: () => ({ fail: operationFail }),
 }))
 
-vi.mock('@/providers/graph-provider', () => ({
+vi.mock('@/providers/graph-provider.tsx', () => ({
   useGraph: () => ({ graph: { root: '/g', name: 'g', generation: 7 } }),
 }))
 

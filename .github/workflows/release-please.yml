@@ -24,6 +24,7 @@ concurrency:
 jobs:
   release-please:
     name: Maintain the Release PRs
+    if: github.repository == 'team-reflect/reflect-open'
     runs-on: ubuntu-latest
     # The desktop package lives at the repo root ("."), so its outputs have
     # no path prefix. The channels never release from the same push:

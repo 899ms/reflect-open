@@ -18,8 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  node:
-    name: lint
+  node-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,7 +42,8 @@ jobs:
       - name: Build
         run: pnpm build
 
-  test:
+  node-test:
+    if: github.event_name != 'merge_group'
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +54,7 @@ jobs:
           - os: macos-latest
             browser: webkit
 
-    name: test ${{ matrix.config.browser }} ${{ matrix.shard }}
+    name: test-${{ matrix.config.browser }} ${{ matrix.shard }}
     runs-on: ${{ matrix.config.os }}
 
     steps:
@@ -72,8 +72,7 @@ jobs:
         env:
           REFLECT_TEST_BROWSER: ${{ matrix.config.browser }}
 
-  rust:
-    name: fmt · clippy (Rust)
+  rust-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,7 +91,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   rust-test:
-    name: test (Rust)
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -105,8 +104,9 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-  apple-rust:
-    name: check Apple Rust bindings
+  # check Apple Rust bindings
+  apple-lint:
+    if: github.event_name != 'merge_group'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,11 +142,11 @@ jobs:
     timeout-minutes: 10
 
     if: always()
-    needs: [node, test, rust, rust-test, apple-rust]
+    needs: [node-lint, node-test, rust-lint, rust-test, apple-lint]
 
     steps:
       - name: Verify that all jobs succeeded
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || (contains(needs.*.result, 'skipped') && github.event_name != 'merge_group') }}
         run: |
           echo 'Some jobs did not succeed: ${{ toJSON(needs) }}'
           exit 1

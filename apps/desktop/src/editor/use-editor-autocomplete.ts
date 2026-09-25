@@ -5,6 +5,7 @@ import type {
   WikilinkItem,
   WikilinkSearchHandler,
 } from '@meowdown/react'
+import { Counter } from '@ocavue/utils'
 import {
   aliasHint,
   contactLinkSuggestions,
@@ -117,14 +118,22 @@ export function useEditorAutocomplete(): EditorAutocomplete {
       const blockedContactNames = contactResolutions.flatMap((resolution) =>
         resolution.kind === 'blocked' ? [resolution.contact.fullName] : [],
       )
-      return buildAutocompleteEntries(query, wikiLinks.suggestions, {
+      const entries = buildAutocompleteEntries(query, wikiLinks.suggestions, {
         offerCreate: true,
         contacts,
         blockedContactNames,
         requireSerializableWikiText: true,
         queryReadsAsDate: wikiLinks.queryReadsAsDate,
         claimedTargetKeys: wikiLinks.claimedTargetKeys,
-      }).map((entry) => {
+      })
+      // Distinct notes can share a title; their rows need the path to tell them apart.
+      const titleCounts = new Counter<string>()
+      for (const entry of entries) {
+        if (entry.kind === 'suggestion' && entry.suggestion.date === null) {
+          titleCounts.increment(displayNoteTitle(entry.suggestion.title))
+        }
+      }
+      return entries.map((entry) => {
         if (entry.kind === 'create') {
           return {
             target: entry.title,
@@ -191,7 +200,9 @@ export function useEditorAutocomplete(): EditorAutocomplete {
               ? path === null
                 ? `${date} · new`
                 : date
-              : undefined
+              : path !== null && titleCounts.get(displayedTitle) > 1
+                ? path
+                : undefined
         return { target, label, ...(detail !== undefined ? { detail } : {}) }
       })
     },
